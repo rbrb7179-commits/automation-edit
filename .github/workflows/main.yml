@@ -3,8 +3,7 @@ name: Build Automation Edit APK
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
+    branches: [main]
 
 jobs:
   build:
@@ -20,13 +19,16 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install Gradle
+      - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.13'
+          gradle-version: '8.14'
+
+      - name: Setup Android SDK
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+          echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
+          yes | sdkmanager --licenses || true
 
       - name: Extract project ZIP
         run: |
@@ -36,18 +38,17 @@ jobs:
 
       - name: Build APK
         run: |
-          PROJECT_FILE=$(find source -name settings.gradle.kts -print -quit)
-          if [ -z "$PROJECT_FILE" ]; then
+          PROJECT_DIR="$(dirname "$(find source -name settings.gradle.kts -print -quit)")"
+          if [ -z "$PROJECT_DIR" ]; then
             echo "Project settings.gradle.kts not found"
             exit 1
           fi
-          PROJECT_DIR=$(dirname "$PROJECT_FILE")
           cd "$PROJECT_DIR"
-          gradle --no-daemon :app:assembleDebug
+          gradle :app:assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Automation-Edit-APK
           path: source/**/app/build/outputs/apk/debug/*.apk
-          if-no-files-found: errorerror
+          if-no-files-found: error
